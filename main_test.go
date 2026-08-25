@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -151,5 +152,34 @@ func TestGiftHandlerTwoConcurrentLargeGifts(t *testing.T) {
 
 	if finalBalance != 20 {
 		t.Fatalf("expected final balance to be 20, got %d", finalBalance)
+	}
+}
+
+func TestGiftHandlerCanceledRequestDoesNotSpendBalance(t *testing.T) {
+	balancesMu.Lock()
+	balances = map[int]int{1: 100}
+	balancesMu.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	body := bytes.NewBufferString(`{"userId":1,"streamerId":100,"amount":10}`)
+	req := httptest.NewRequest(http.MethodPost, "/gift", body).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	giftHandler(rec, req)
+
+	if rec.Code != http.StatusRequestTimeout {
+		t.Fatalf("expected status %d, got %d", http.StatusRequestTimeout, rec.Code)
+	}
+
+	balancesMu.Lock()
+	finalBalance := balances[1]
+	balancesMu.Unlock()
+
+	t.Logf("canceled gift request: status=%d, final_balance=%d", rec.Code, finalBalance)
+
+	if finalBalance != 100 {
+		t.Fatalf("expected canceled request to leave balance at 100, got %d", finalBalance)
 	}
 }

@@ -52,6 +52,13 @@ func giftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	select {
+	case <-r.Context().Done():
+		writeError(w, http.StatusRequestTimeout, "request canceled")
+		return
+	default:
+	}
+
 	balancesMu.Lock()
 	defer balancesMu.Unlock()
 
