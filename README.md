@@ -46,6 +46,33 @@ Expected learning output:
 场景 3：请求已经取消。HTTP 状态=408，最终余额=100
 ```
 
+## See The Broken Version
+
+The file `broken_test.go` contains a deliberately wrong version for learning.
+
+It is not included in normal `go test` runs. To run it:
+
+```powershell
+go test -tags broken -v -run TestBrokenScenario
+```
+
+Expected result: this test fails.
+
+Why it fails:
+
+```text
+Request A reads balance = 100
+Request B reads balance = 100
+
+A thinks 80 is affordable
+B also thinks 80 is affordable
+
+Both requests succeed
+The system accepts 160 coins of spending from a 100 coin wallet
+```
+
+This failure is the bug that `sync.Mutex` fixes in `main.go`.
+
 ## What This Is Testing
 
 ### 1. Goroutine
