@@ -10,7 +10,11 @@ import (
 	"testing"
 )
 
-func TestGiftHandlerConcurrentRequests(t *testing.T) {
+func TestScenario1_20ConcurrentGiftRequests(t *testing.T) {
+	// 场景 1：
+	// 用户 1 余额是 100。
+	// 20 个请求几乎同时发送礼物，每个请求扣 10。
+	// 正确结果：10 个成功，10 个余额不足失败，最终余额是 0。
 	balancesMu.Lock()
 	balances = map[int]int{1: 100}
 	balancesMu.Unlock()
@@ -84,14 +88,19 @@ func TestGiftHandlerConcurrentRequests(t *testing.T) {
 	finalBalance := balances[1]
 	balancesMu.Unlock()
 
-	t.Logf("20 concurrent gifts: successes=%d, insufficient_balance_failures=%d, final_balance=%d", successes, insufficientBalanceFailures, finalBalance)
+	t.Logf("场景 1：20 个并发请求，每个扣 10。成功=%d，余额不足失败=%d，最终余额=%d", successes, insufficientBalanceFailures, finalBalance)
 
 	if finalBalance != 0 {
 		t.Fatalf("expected final balance to be 0, got %d", finalBalance)
 	}
 }
 
-func TestGiftHandlerTwoConcurrentLargeGifts(t *testing.T) {
+func TestScenario2_TwoConcurrentLargeGifts(t *testing.T) {
+	// 场景 2：
+	// 用户 1 余额是 100。
+	// 两个请求几乎同时发送大额礼物，每个请求扣 80。
+	// 正确结果：只能有 1 个成功，另 1 个必须余额不足失败，最终余额是 20。
+	// 这个场景专门用来理解 race condition。
 	balancesMu.Lock()
 	balances = map[int]int{1: 100}
 	balancesMu.Unlock()
@@ -148,14 +157,19 @@ func TestGiftHandlerTwoConcurrentLargeGifts(t *testing.T) {
 	finalBalance := balances[1]
 	balancesMu.Unlock()
 
-	t.Logf("two concurrent 80-coin gifts: successes=%d, failures=%d, final_balance=%d", successes, failures, finalBalance)
+	t.Logf("场景 2：两个并发大额请求，每个扣 80。成功=%d，余额不足失败=%d，最终余额=%d", successes, failures, finalBalance)
 
 	if finalBalance != 20 {
 		t.Fatalf("expected final balance to be 20, got %d", finalBalance)
 	}
 }
 
-func TestGiftHandlerCanceledRequestDoesNotSpendBalance(t *testing.T) {
+func TestScenario3_CanceledRequestDoesNotSpendBalance(t *testing.T) {
+	// 场景 3：
+	// 用户 1 余额是 100。
+	// 请求在进入扣款逻辑前已经被 cancel。
+	// 正确结果：返回 408，并且不能扣余额，最终余额仍然是 100。
+	// 这个场景用来理解 request context。
 	balancesMu.Lock()
 	balances = map[int]int{1: 100}
 	balancesMu.Unlock()
@@ -177,7 +191,7 @@ func TestGiftHandlerCanceledRequestDoesNotSpendBalance(t *testing.T) {
 	finalBalance := balances[1]
 	balancesMu.Unlock()
 
-	t.Logf("canceled gift request: status=%d, final_balance=%d", rec.Code, finalBalance)
+	t.Logf("场景 3：请求已经取消。HTTP 状态=%d，最终余额=%d", rec.Code, finalBalance)
 
 	if finalBalance != 100 {
 		t.Fatalf("expected canceled request to leave balance at 100, got %d", finalBalance)

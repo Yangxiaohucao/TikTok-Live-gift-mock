@@ -41,9 +41,9 @@ go test -v
 Expected learning output:
 
 ```text
-20 concurrent gifts: successes=10, insufficient_balance_failures=10, final_balance=0
-two concurrent 80-coin gifts: successes=1, failures=1, final_balance=20
-canceled gift request: status=408, final_balance=100
+场景 1：20 个并发请求，每个扣 10。成功=10，余额不足失败=10，最终余额=0
+场景 2：两个并发大额请求，每个扣 80。成功=1，余额不足失败=1，最终余额=20
+场景 3：请求已经取消。HTTP 状态=408，最终余额=100
 ```
 
 ## What This Is Testing
@@ -111,7 +111,7 @@ If the request is already canceled, `/gift` should not spend the user's balance.
 The test proves this:
 
 ```text
-canceled gift request: status=408, final_balance=100
+场景 3：请求已经取消。HTTP 状态=408，最终余额=100
 ```
 
 ## Why This Matters
